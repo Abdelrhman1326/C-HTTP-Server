@@ -11,6 +11,44 @@ static void judge(const char *line, size_t n) {
                is 0x21..0x7e; version is HTTP/<digit>.<digit>  -> any failure is 400.
        TODO 4: method not in GET HEAD POST PUT DELETE OPTIONS PATCH -> 501.
        TODO 5: version not HTTP/1.0 or HTTP/1.1 -> 505. */
+
+    
+    int sp1 = -1, sp2 = -1;
+
+    for (size_t i = 0; i < n; i++) {
+        // line can not contain CR of LF at all, these are used for line termination only
+        if (line[i] == 0x0A || line[i] == 0x0D) {
+            printf("%d\n", 400); // bad request
+            return;
+        }
+
+        // we must have two spaces only, and they must be separated not concatenated
+        if (line[i] == 0x20) {
+            if (sp1 != -1 && sp2 != -1) {
+                printf("%d\n", 400); // bad request
+                return;
+            } else if (sp1 != -1) {
+                sp2 = i;
+            } else if (i == 0) {
+                printf("%d\n", 400); // leading space
+                return;
+            } else {
+                sp1 = i;
+            }
+
+            if (sp1 != -1 && sp2 != -1 && sp2 - sp1 == 1) {
+                printf("%d\n", 400); // bad request
+                return;
+            }
+        }
+    }
+
+    // catching line with zero, one, and trailing spaces
+    if (sp1 == -1 || sp2 == -1 || sp2 == (int)n - 1) {
+        printf("%d\n", 400); // bad request
+        return;
+    }
+    
     printf("OK %.*s\n", (int)n, line);
 }
 
