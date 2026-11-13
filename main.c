@@ -80,25 +80,6 @@ static void judge(const char *line, size_t n) {
         }
     }
 
-    // make sure that the used method is valid
-    HttpMethod parsed_method = parse_method(method);
-    if (!parsed_method) {
-        printf("%d\n", 501); // empty or invalid method passed
-        return;
-    }
-
-    // target must start with '/' OR be "*" (for OPTIONS only)
-    if (target[0] == '*') {
-        // length of the path must be 1 and the method must be OPTIONS
-        if (target_len != 1 || parsed_method != METHOD_OPTIONS) {
-            printf("%d\n", 400);
-            return;
-        }
-    } else if (target[0] != '/') {
-        printf("%d\n", 400);
-        return;
-    }
-
     // every byte of the target must be between 0x21 and 0x7e
     for (size_t i = 0; i < target_len; i++) {
         unsigned char c = (unsigned char)target[i];
@@ -115,8 +96,40 @@ static void judge(const char *line, size_t n) {
             version[5] < '0' || version[5] > '9' ||
             version[6] != '.' ||
             version[7] < '0' || version[7] > '9') {
-                
+
         printf("400\n");
+        return;
+    }
+
+    // validate the target structure
+    if (target[0] == '*') {
+        if (target_len != 1) {
+            printf("400\n");
+            return;
+        }
+    } else if (target[0] != '/') {
+        printf("400\n");
+        return;
+    }
+
+    HttpMethod parsed_method = parse_method(method);
+
+    // make sure that the used method is valid
+    if (!parsed_method) {
+        printf("501\n");
+        return;
+    }
+
+    // enforce OPTIONS restriction
+    if (target[0] == '*' && parsed_method != METHOD_OPTIONS) {
+        printf("400\n");
+        return;
+    }
+
+
+    // if version not HTTP/1.0 or HTTP/1.1; return 505
+    if (strcmp(version, "HTTP/1.0") != 0 && strcmp(version, "HTTP/1.1") != 0) {
+        printf("505\n");
         return;
     }
     
