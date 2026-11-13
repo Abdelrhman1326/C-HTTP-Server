@@ -68,12 +68,12 @@ static void judge(const char *line, size_t n) {
         return;
     }
 
-    getSubstring(method, line, 0, sp1);
-    getSubstring(target, line, sp1 + 1, (sp2 - sp1 - 1));
-    getSubstring(version, line, sp2 + 1, (n - sp2 - 1));
+    getSubstring(method, line, 0, method_len);
+    getSubstring(target, line, sp1 + 1, target_len);
+    getSubstring(version, line, sp2 + 1, version_len);
 
     // method must be A–Z
-    for (size_t i = 0; i < strlen(method); i++) {
+    for (size_t i = 0; i < method_len; i++) {
         if (!(method[i] >= 'A' && method[i] <= 'Z')) {
             printf("%d\n", 400);
             return;
@@ -96,6 +96,27 @@ static void judge(const char *line, size_t n) {
         }
     } else if (target[0] != '/') {
         printf("%d\n", 400);
+        return;
+    }
+
+    // every byte of the target must be between 0x21 and 0x7e
+    for (size_t i = 0; i < target_len; i++) {
+        unsigned char c = (unsigned char)target[i];
+
+        if (c < 0x21 || c > 0x7e) {
+            printf("400\n");
+            return;
+        }
+    }
+
+    // HTTP/<digit>.<digit> -> at least 8 characters
+    if (version_len != 8 ||
+            strncmp(version, "HTTP/", 5) != 0 ||
+            version[5] < '0' || version[5] > '9' ||
+            version[6] != '.' ||
+            version[7] < '0' || version[7] > '9') {
+                
+        printf("400\n");
         return;
     }
     
