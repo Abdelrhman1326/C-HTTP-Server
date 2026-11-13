@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "string_utils.h"
+#include "http_methods.h"
+
 /* Decide what to print for ONE line (already cut at CRLF, CRLF not included).
    Print exactly one of: "OK <method> <target> <version>", "400", "501", "505". */
 static void judge(const char *line, size_t n) {
@@ -46,6 +49,53 @@ static void judge(const char *line, size_t n) {
     // catching line with zero, one, and trailing spaces
     if (sp1 == -1 || sp2 == -1 || sp2 == (int)n - 1) {
         printf("%d\n", 400); // bad request
+        return;
+    }
+
+    // extracts the line parts
+    char method[16];
+    char target[2048];
+    char version[16];
+
+    method[0] = '\0'; target[0] = '\0'; version[0] = '\0';
+
+    size_t method_len = (size_t)sp1;
+    size_t target_len = (size_t)(sp2 - sp1 - 1);
+    size_t version_len = n - (size_t)sp2 - 1;
+
+    if (method_len >= sizeof(method) || target_len >= sizeof(target) || version_len >= sizeof(version)) {
+        printf("%d\n", 400);
+        return;
+    }
+
+    getSubstring(method, line, 0, sp1);
+    getSubstring(target, line, sp1 + 1, (sp2 - sp1 - 1));
+    getSubstring(version, line, sp2 + 1, (n - sp2 - 1));
+
+    // method must be A–Z
+    for (size_t i = 0; i < strlen(method); i++) {
+        if (!(method[i] >= 'A' && method[i] <= 'Z')) {
+            printf("%d\n", 400);
+            return;
+        }
+    }
+
+    // make sure that the used method is valid
+    HttpMethod parsed_method = parse_method(method);
+    if (!parsed_method) {
+        printf("%d\n", 501); // empty or invalid method passed
+        return;
+    }
+
+    // target must start with '/' OR be "*" (for OPTIONS only)
+    if (target[0] == '*') {
+        // length of the path must be 1 and the method must be OPTIONS
+        if (target_len != 1 || parsed_method != METHOD_OPTIONS) {
+            printf("%d\n", 400);
+            return;
+        }
+    } else if (target[0] != '/') {
+        printf("%d\n", 400);
         return;
     }
     
