@@ -11,9 +11,9 @@
 
 static const char *reason_phrase(RequestLineStatus status) {
     switch (status) {
-        case REQUEST_LINE_OK:                    return "OK";
-        case REQUEST_LINE_BAD_REQUEST:           return "Bad Request";
-        case REQUEST_LINE_NOT_IMPLEMENTED:       return "Not Implemented";
+        case REQUEST_LINE_OK: return "OK";
+        case REQUEST_LINE_BAD_REQUEST: return "Bad Request";
+        case REQUEST_LINE_NOT_IMPLEMENTED: return "Not Implemented";
         case REQUEST_LINE_VERSION_NOT_SUPPORTED: return "HTTP Version Not Supported";
     }
     return "Bad Request";
