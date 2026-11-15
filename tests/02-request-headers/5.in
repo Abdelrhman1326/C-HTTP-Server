@@ -1,7 +1,0 @@
-Host: a.example
-Accept: text/html
-X-Tag: one
-Accept: application/json
-X-Tag: two
-Accept: */*
-

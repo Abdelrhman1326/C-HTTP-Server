@@ -1,7 +1,0 @@
-GET / HTTP/1.0
-Host: a.test
-Connection: keep-alive
-
-GET /next HTTP/1.0
-Host: a.test
-

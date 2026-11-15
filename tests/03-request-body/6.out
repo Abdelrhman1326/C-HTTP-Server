@@ -1,3 +1,0 @@
-framing: chunked
-body: "abcdefghijklmnopqrstuvwxyz\r\n\n"
-rest: 0
