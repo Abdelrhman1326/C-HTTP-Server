@@ -7,24 +7,77 @@ with the matching status code. Build with `make`, run with `make run`
 
 ## Current stage: request headers
 
-Request-line validation is done. The next step is `parse_request_headers()`:
+Request-line validation is done. The remaining work is
+`parse_request_headers()` in `include/http_headers.h` / `src/http_headers.c`:
 validate the header block between the request line and the blank line, and
-store each field as a slice into the read buffer. Returns `200`, `400`, `431`,
-or `501`.
+store each field as a slice into the read buffer.
 
-- [ ] Add `include/http_headers.h` and `src/http_headers.c`.
-- [ ] Split the block on CRLF; a bare CR or LF inside a line is `400`.
-- [ ] Reject obsolete line folding (continuation lines starting with SP/HTAB).
-- [ ] Require `name ":" value`; no whitespace before the colon, no empty name.
-- [ ] Validate field names against RFC 7230 `tchar` and values against control-byte rules.
-- [ ] Trim optional whitespace around values.
-- [ ] Store names/values as buffer slices and add a case-insensitive `find_header()`.
-- [ ] Require exactly one `Host` for HTTP/1.1.
-- [ ] Validate `Content-Length`; reject it with `Transfer-Encoding`, and return `501` for `Transfer-Encoding` alone.
-- [ ] Cap header count and block size -> `431`.
-- [ ] Parse `Connection` tokens case-insensitively.
-- [ ] In `main.c`, read through the blank line; the first failure wins.
-- [ ] Tests: malformed lines and folding, duplicate `Host`/`Content-Length`, bad lengths, split reads, oversized block.
+### Contract
+
+    HeadersStatus parse_request_headers(const char *block, size_t n,
+                                        RequestHeaders *out);
+
+- `block` — first byte **after** the request line's CRLF. The request line is
+  not part of the input.
+- `n` — length of the header section **including** the terminating blank
+  line's CRLF. A request with no headers is `block == "\r\n"`, `n == 2`.
+- `block + n` — first byte of the body, or the end of the buffer.
+- `out` — caller-owned struct, zeroed on entry. On any non-`200` return its
+  contents are unspecified and must not be read.
+- Input is **not** NUL-terminated and may contain any byte. Use `memchr`,
+  `memcmp`, and index arithmetic only — no `strchr`, `strstr`, `strtok`,
+  `strlen`, or `sscanf`.
+- Fields are slices into `block`, so the caller's buffer must outlive `out`.
+  No copies, no allocation, no modification of the input.
+- Pure function: no printing, no logging, no socket writes.
+- The block is always complete. `main.c` reads until it sees `\r\n\r\n` (or
+  hits the cap) and only then calls this function; there is no `INCOMPLETE`
+  status.
+
+### Status codes
+
+| Status | Condition |
+| --- | --- |
+| `200` | Header block is well formed |
+| `400` | Bare CR or LF, obs-fold, bad field syntax, bad name byte, bad value byte, duplicate `Host`, malformed or conflicting `Content-Length`, `Content-Length` together with `Transfer-Encoding` |
+| `431` | More than `HTTP_MAX_HEADERS` fields, or `n > HTTP_MAX_HEADER_BLOCK` |
+| `501` | `Transfer-Encoding` present without `Content-Length` |
+
+Add `431 -> "Request Header Fields Too Large"` to `reason_phrase()` in
+`main.c`.
+
+### Checklist
+
+- [x] Add `include/http_headers.h` and `src/http_headers.c`.
+- [x] Block must end with the blank-line CRLF (`n == 2`, or bytes `n-4..n-3`
+      are CRLF and `n-2..n-1` are CRLF); otherwise `400`. Reject blocks over
+      `HTTP_MAX_HEADER_BLOCK` with `431`.
+- [x] Split on CRLF. A CR or LF that is not part of a CRLF pair inside a line
+      is `400`.
+- [x] Reject obsolete line folding: any line beginning with SP or HTAB is
+      `400`.
+- [ ] Require `name ":" value`. Empty name, missing colon, and any SP or HTAB
+      immediately before the colon are all `400`.
+- [ ] Field name: at least one byte, every byte an RFC 7230 `tchar`
+      (``! # $ % & ' * + - . ^ _ ` | ~``, DIGIT, ALPHA), else `400`.
+- [ ] Field value: HTAB, SP, `0x21..0x7E`, and `0x80..0xFF` are allowed; every
+      other control byte, including DEL, is `400`.
+- [ ] Trim SP and HTAB from both ends of the value. An empty value is legal.
+- [ ] Store names and values as `(pointer, length)` slices; keep the original
+      name casing. Add `find_header()` doing ASCII-case-insensitive lookup.
+- [ ] Require exactly one `Host` for HTTP/1.1; a duplicate or missing `Host`
+      is `400`.
+- [ ] `Content-Length`: one or more ASCII digits, no sign, no whitespace, no
+      overflow of `size_t`, else `400`. Duplicates with differing values are
+      `400`. Reject it together with `Transfer-Encoding` (`400`).
+- [ ] `Transfer-Encoding` alone -> `501`.
+- [ ] Cap header count at `HTTP_MAX_HEADERS`; exceeding it -> `431`.
+- [ ] Parse `Connection` tokens case-insensitively, comma-separated with
+      optional whitespace, and set `connection_close` / `connection_keep_alive`.
+- [ ] In `main.c`, read through the blank line before parsing; the first
+      failure wins, in request-line-then-headers order.
+- [ ] Tests: malformed lines and folding, duplicate `Host` / `Content-Length`,
+      bad lengths, split reads, oversized block.
 
 ## Roadmap
 

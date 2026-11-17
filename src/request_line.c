@@ -1,8 +1,6 @@
 #include "request_line.h"
-
-#include <string.h>
-
 #include "http_methods.h"
+#include <string.h>
 
 RequestLineStatus parse_request_line(const char *line, size_t n) {
     int sp1 = -1, sp2 = -1;

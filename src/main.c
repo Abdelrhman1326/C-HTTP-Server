@@ -4,10 +4,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "http_headers.h"
 #include "request_line.h"
 
 #define PORT 8080
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE (HTTP_MAX_HEADER_BLOCK + 1024)
 
 static const char *reason_phrase(RequestLineStatus status) {
     switch (status) {
