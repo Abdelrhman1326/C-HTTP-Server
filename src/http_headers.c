@@ -48,9 +48,60 @@ HeadersStatus parse_request_headers(const char *block, size_t n, RequestHeaders 
         }
     }
 
+    /*
+      spaces are allowed after colon of the header only but neven before it
+      Host: Example.com -> fine
+      Host:    Example.com -> fine
+      Host : Example.com -> invalid, 400 
+    */
 
-    /* TODO: field parsing */
+    size_t line_start = 0;
+    unsigned short colon_found = 0;
 
-    
+    for (size_t i = 0; i < n; i++) {
+        if (block[i] == ':' && !colon_found) {
+            if (i == line_start) {
+                return HEADERS_BAD_REQUEST; // Empty name (": value")
+            }
+
+            if (out->count >= HTTP_MAX_HEADERS) return HEADERS_TOO_LARGE;
+
+            colon_found = 1;
+            out->fields[out->count].name = &block[line_start];
+            out->fields[out->count].name_len = i - line_start;
+
+            line_start = i + 1;
+
+        } else if (colon_found == 1) {
+            if (block[i] == '\r') {
+                // reached the end
+
+                // trim leading/trailing spaces and tabs from the value
+                size_t vs = line_start, ve = i;
+                while (vs < ve && (block[vs] == ' ' || block[vs] == '\t')) vs++;
+                while (ve > vs && (block[ve - 1] == ' ' || block[ve - 1] == '\t')) ve--;
+
+                out->fields[out->count].value = &block[vs];
+                out->fields[out->count].value_len = ve - vs;
+
+                out->count++;
+
+                line_start = i + 2;
+                i++; // step onto '\n' so the loop's i++ lands on the next line
+                colon_found = 0;
+            }
+
+        // everything below runs only while we're still reading a header name
+        } else if (block[i] == '\r') {
+            // a line with no colon is only legal as the final blank line
+            if (i == line_start && i == n - 2) break;
+            return HEADERS_BAD_REQUEST;
+        } else if (block[i] == ' ' || block[i] == '\t') {
+            return HEADERS_BAD_REQUEST; // "Host : x"
+        }
+    }
+
+
     return HEADERS_OK;
+
 }

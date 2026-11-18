@@ -56,14 +56,14 @@ Add `431 -> "Request Header Fields Too Large"` to `reason_phrase()` in
       is `400`.
 - [x] Reject obsolete line folding: any line beginning with SP or HTAB is
       `400`.
-- [ ] Require `name ":" value`. Empty name, missing colon, and any SP or HTAB
+- [x] Require `name ":" value`. Empty name, missing colon, and any SP or HTAB
       immediately before the colon are all `400`.
 - [ ] Field name: at least one byte, every byte an RFC 7230 `tchar`
       (``! # $ % & ' * + - . ^ _ ` | ~``, DIGIT, ALPHA), else `400`.
 - [ ] Field value: HTAB, SP, `0x21..0x7E`, and `0x80..0xFF` are allowed; every
       other control byte, including DEL, is `400`.
-- [ ] Trim SP and HTAB from both ends of the value. An empty value is legal.
-- [ ] Store names and values as `(pointer, length)` slices; keep the original
+- [x] Trim SP and HTAB from both ends of the value. An empty value is legal.
+- [x] Store names and values as `(pointer, length)` slices; keep the original
       name casing. Add `find_header()` doing ASCII-case-insensitive lookup.
 - [ ] Require exactly one `Host` for HTTP/1.1; a duplicate or missing `Host`
       is `400`.

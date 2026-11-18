@@ -23,7 +23,7 @@ typedef struct {
 } HeaderField;
 
 typedef struct {
-    HeaderField fields[HTTP_MAX_HEADERS];
+    HeaderField fields[HTTP_MAX_HEADERS + 1];
     size_t count;
 
     int has_host;
